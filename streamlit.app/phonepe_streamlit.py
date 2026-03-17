@@ -14,12 +14,23 @@ st.title("📊 PhonePe Transaction Insights Dashboard")
 
 # DATABASE CONNECTION
 
-username = "root"
-password = "your_password"
-host = "localhost"
-database = "phonepe_db"
+@st.cache_resource
+def get_engine():
+    try:
+        username = st.secrets["DB_USER"]
+        password = st.secrets["DB_PASSWORD"]
+        host = st.secrets["DB_HOST"]
+        database = st.secrets["DB_NAME"]
 
-engine = create_engine(f"mysql+pymysql://{username}:{password}@{host}/{database}")
+        engine = create_engine(
+            f"mysql+pymysql://{username}:{password}@{host}/{database}"
+        )
+        return engine
+    except Exception as e:
+        st.error("Database connection failed. Please check your database credentials and host.")
+        st.stop()
+
+engine = get_engine()
 
 # SIDEBAR NAVIGATION
 
