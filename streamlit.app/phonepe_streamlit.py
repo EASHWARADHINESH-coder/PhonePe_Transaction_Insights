@@ -5,6 +5,7 @@ import requests
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from sqlalchemy.engine import URL
 from sqlalchemy import create_engine, text
 
 # PAGE CONFIG
@@ -17,19 +18,30 @@ st.title("📊 PhonePe Transaction Insights Dashboard")
 @st.cache_resource
 def get_engine():
     try:
-        engine = create_engine(
-            f"mysql+pymysql://{st.secrets['DB_USER']}:{st.secrets['DB_PASSWORD']}@{st.secrets['DB_HOST']}/{st.secrets['DB_NAME']}",
-            pool_pre_ping=True
+        db_url = URL.create(
+            drivername="mysql+pymysql",
+            username=st.secrets["DB_USER"],
+            password=st.secrets["DB_PASSWORD"],
+            host=st.secrets["DB_HOST"],
+            port=int(st.secrets.get("DB_PORT", 3306)),
+            database=st.secrets["DB_NAME"],
         )
 
-        # Force a real connection test
+        engine = create_engine(
+            db_url,
+            pool_pre_ping=True,
+            pool_recycle=3600,
+            connect_args={"connect_timeout": 20}
+        )
+
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
 
         return engine
 
     except Exception as e:
-        st.error("Database connection failed. Check DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, and whether the MySQL server allows external connections.")
+        st.error("Database connection failed.")
+        st.write("Check DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, and whether your MySQL server allows external connections.")
         st.exception(e)
         st.stop()
 
