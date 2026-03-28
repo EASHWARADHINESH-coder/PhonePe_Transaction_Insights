@@ -62,7 +62,7 @@ The Home page acts as the executive summary of the dashboard. It already include
 - KPI cards for transactions, users, and insurance,
 - India-level choropleth maps,
 - top-performing states snapshot,
-- and a key growth insight section. fileciteturn1file0L43-L283
+- and a key growth insight section. 
 
 ### Improvements Added in Positioning
 
