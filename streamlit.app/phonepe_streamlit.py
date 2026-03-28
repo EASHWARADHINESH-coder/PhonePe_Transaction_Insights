@@ -17,33 +17,15 @@ st.title("📊 PhonePe Transaction Insights Dashboard")
 
 @st.cache_resource
 def get_engine():
-    try:
-        db_url = URL.create(
-            drivername="mysql+pymysql",
-            username=st.secrets["DB_USER"],
-            password=st.secrets["DB_PASSWORD"],
-            host=st.secrets["DB_HOST"],
-            port=int(st.secrets.get("DB_PORT", 3306)),
-            database=st.secrets["DB_NAME"],
-        )
+    username = "root"
+    password = "your_password"
+    host = "localhost"
+    database = "phonepe_db"
 
-        engine = create_engine(
-            db_url,
-            pool_pre_ping=True,
-            pool_recycle=3600,
-            connect_args={"connect_timeout": 20}
-        )
-
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-
-        return engine
-
-    except Exception as e:
-        st.error("Database connection failed.")
-        st.write("Check DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, and whether your MySQL server allows external connections.")
-        st.exception(e)
-        st.stop()
+    engine = create_engine(
+        f"mysql+pymysql://{username}:{password}@{host}/{database}"
+    )
+    return engine
 
 engine = get_engine()
 
@@ -74,164 +56,346 @@ def format_state_name(state):
 
 if page == "Home":
 
-    st.subheader("PhonePe Data Analysis")
-    st.write("""
-This dashboard analyzes PhonePe digital payment data across India.
+    st.markdown("""
+    # 📊 PhonePe Insights Dashboard
+    ### 🚀 Understanding Digital Payment Growth Across India
+    """)
 
-Features:
-- State wise transaction analysis
-- Transaction type comparison
-- Transaction amount insights
-- Interactive charts
-""")
-
-    st.markdown("---")
-    st.subheader("PhonePe Transaction Heatmap Across India")
-    st.write("""
-This visualization shows the geographic distribution of PhonePe transactions across different states in India.
-
-Features:
-- Highlights states with the highest digital payment activity
-- Identifies regions with growing transaction adoption
-- Displays transaction concentration using a color intensity scale
-- Helps detect potential markets for future expansion
-
-Insight:
-States with darker colors indicate higher transaction volumes, showing strong PhonePe adoption and active digital payment usage.
-""")
+    st.info("""
+    🔍 Key Insights Covered:
     
-    query = text("""
-    SELECT 
-    state,
-    SUM(transaction_count) AS total_transactions
-    FROM aggregated_transactions
-    GROUP BY state
+    • Transaction Distribution Across India  
+    • User Adoption Across States  
+    • Insurance Penetration Analysis  
+    • Top Performing States Snapshot
     """)
 
-    df = pd.read_sql(query, engine)
+    # ----------------------------
+    # LOAD FILTER DATA
+    # ----------------------------
+    try:
+        year_query = text("""
+        SELECT DISTINCT year
+        FROM aggregated_transactions
+        ORDER BY year
+        """)
+        year_df = pd.read_sql(year_query, engine)
+        available_years = sorted(year_df["year"].dropna().tolist())
 
-    df["state"] = df["state"].str.replace("-", " ").str.title()
+        quarter_query = text("""
+        SELECT DISTINCT quarter
+        FROM aggregated_transactions
+        ORDER BY quarter
+        """)
+        quarter_df = pd.read_sql(quarter_query, engine)
+        available_quarters = sorted(quarter_df["quarter"].dropna().tolist())
 
-    geojson_url = "https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson"
-    
-    fig = px.choropleth(
-        df,
-        geojson=geojson_url,
-        featureidkey="properties.ST_NM",
-        locations="state",
-        color="total_transactions",
-        color_continuous_scale="Reds",
-        title="PhonePe Transaction Distribution Across India"
-    )
+    except Exception as e:
+        st.error(f"Error loading filter values: {e}")
+        available_years = []
+        available_quarters = []
 
-    fig.update_layout(
-        height=700
-    )
+    # ----------------------------
+    # FILTERS
+    # ----------------------------
+    col_filter1, col_filter2 = st.columns(2)
 
-    fig.update_geos(
-        fitbounds="locations",
-        visible=False
-    )
+    with col_filter1:
+        selected_year = st.selectbox(
+            "Select Year",
+            available_years if available_years else ["No Data"]
+        )
 
-    st.plotly_chart(fig, use_container_width=True)
+    with col_filter2:
+        selected_quarter = st.selectbox(
+            "Select Quarter",
+            available_quarters if available_quarters else ["No Data"]
+        )
+
+    # ----------------------------
+    # KPI SECTION
+    # ----------------------------
+    try:
+        kpi_transaction_query = text("""
+        SELECT SUM(transaction_count) AS total_transactions
+        FROM aggregated_transactions
+        WHERE year = :year AND quarter = :quarter
+        """)
+
+        kpi_user_query = text("""
+        SELECT SUM(registeredUsers) AS total_users
+        FROM aggregated_users
+        WHERE year = :year AND quarter = :quarter
+        """)
+
+        kpi_insurance_query = text("""
+        SELECT SUM(insurance_count) AS total_insurance
+        FROM aggregated_insurance
+        WHERE year = :year AND quarter = :quarter
+        """)
+
+        total_transactions = pd.read_sql(
+            kpi_transaction_query, engine,
+            params={"year": selected_year, "quarter": selected_quarter}
+        )["total_transactions"].iloc[0]
+
+        total_users = pd.read_sql(
+            kpi_user_query, engine,
+            params={"year": selected_year, "quarter": selected_quarter}
+        )["total_users"].iloc[0]
+
+        total_insurance = pd.read_sql(
+            kpi_insurance_query, engine,
+            params={"year": selected_year, "quarter": selected_quarter}
+        )["total_insurance"].iloc[0]
+
+        total_transactions = 0 if pd.isna(total_transactions) else total_transactions
+        total_users = 0 if pd.isna(total_users) else total_users
+        total_insurance = 0 if pd.isna(total_insurance) else total_insurance
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric(
+            "Total Transactions",
+            f"{total_transactions/1_000_000:.2f} M"
+        )
+
+        col2.metric(
+            "Registered Users",
+            f"{total_users/1_000_000:.2f} M"
+        )
+
+        col3.metric(
+            "Insurance Transactions",
+            f"{total_insurance/1_000_000:.2f} M"
+        )
+
+    except Exception as e:
+        st.error(f"Error loading KPI metrics: {e}")
 
     st.markdown("---")
-    st.subheader("PhonePe User Distribution Across India")
-    st.write("""
-This visualization displays the distribution of registered PhonePe users across different states in India.
 
-Features:
-- Shows the number of registered PhonePe users in each state
-- Highlights regions with strong user adoption
-- Uses color intensity to represent user concentration across states
-- Provides a quick overview of PhonePe’s user base distribution
+    # ----------------------------
+    # MAP DATA QUERIES
+    # ----------------------------
+    try:
+        # Transaction map data
+        query_transactions = text("""
+        SELECT 
+            state,
+            SUM(transaction_count) AS total_transactions
+        FROM aggregated_transactions
+        WHERE year = :year AND quarter = :quarter
+        GROUP BY state
+        """)
 
-Insight:
-States with darker shades indicate a higher number of registered users, reflecting strong adoption of PhonePe services and greater digital payment penetration in those regions.
-""")
+        df_transactions = pd.read_sql(
+            query_transactions, engine,
+            params={"year": selected_year, "quarter": selected_quarter}
+        )
 
-    query_users = text("""
-    SELECT 
-    state,
-    SUM(registeredUsers) AS total_users
-    FROM aggregated_users
-    GROUP BY state
-    """)
+        # User map data
+        query_users = text("""
+        SELECT 
+            state,
+            SUM(registeredUsers) AS total_users
+        FROM aggregated_users
+        WHERE year = :year AND quarter = :quarter
+        GROUP BY state
+        """)
 
-    df_users = pd.read_sql(query_users, engine)
+        df_users = pd.read_sql(
+            query_users, engine,
+            params={"year": selected_year, "quarter": selected_quarter}
+        )
 
-    df_users["state"] = df_users["state"].str.replace("-", " ").str.title()
+        # Insurance map data
+        query_insurance = text("""
+        SELECT 
+            state,
+            SUM(insurance_count) AS total_insurance
+        FROM aggregated_insurance
+        WHERE year = :year AND quarter = :quarter
+        GROUP BY state
+        """)
 
-    fig2 = px.choropleth(
-        df_users,
-        geojson=geojson_url,
-        featureidkey="properties.ST_NM",
-        locations="state",
-        color="total_users",
-        color_continuous_scale="Blues",
-        title="PhonePe Registered Users Distribution"
-    )
+        df_insurance = pd.read_sql(
+            query_insurance, engine,
+            params={"year": selected_year, "quarter": selected_quarter}
+        )
 
-    fig2.update_layout(height=700)
+        # State formatting
+        if not df_transactions.empty:
+            df_transactions["state"] = df_transactions["state"].str.replace("-", " ").str.title()
 
-    fig2.update_geos(
-        fitbounds="locations",
-        visible=False
-    )
+        if not df_users.empty:
+            df_users["state"] = df_users["state"].str.replace("-", " ").str.title()
 
-    st.plotly_chart(fig2, use_container_width=True)
+        if not df_insurance.empty:
+            df_insurance["state"] = df_insurance["state"].str.replace("-", " ").str.title()
+
+        geojson_url = "https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson"
+
+        # ----------------------------
+        # MAP CHARTS
+        # ----------------------------
+        col_map1, col_map2, col_map3 = st.columns(3)
+
+        with col_map1:
+            st.subheader("💳 Transactions")
+            st.caption("State-wise transaction distribution")
+
+            fig1 = px.choropleth(
+                df_transactions,
+                geojson=geojson_url,
+                featureidkey="properties.ST_NM",
+                locations="state",
+                color="total_transactions",
+                color_continuous_scale="Reds",
+                title=f"Transactions Map ({selected_year} Q{selected_quarter})"
+            )
+
+            fig1.update_layout(height=450, margin=dict(l=0, r=0, t=40, b=0))
+            fig1.update_geos(fitbounds="locations", visible=False)
+
+            st.plotly_chart(fig1, use_container_width=True)
+
+        with col_map2:
+            st.subheader("👥 Users")
+            st.caption("State-wise registered users distribution")
+
+            fig2 = px.choropleth(
+                df_users,
+                geojson=geojson_url,
+                featureidkey="properties.ST_NM",
+                locations="state",
+                color="total_users",
+                color_continuous_scale="Blues",
+                title=f"Users Map ({selected_year} Q{selected_quarter})"
+            )
+
+            fig2.update_layout(height=450, margin=dict(l=0, r=0, t=40, b=0))
+            fig2.update_geos(fitbounds="locations", visible=False)
+
+            st.plotly_chart(fig2, use_container_width=True)
+
+        with col_map3:
+            st.subheader("🛡 Insurance")
+            st.caption("State-wise insurance transaction distribution")
+
+            fig3 = px.choropleth(
+                df_insurance,
+                geojson=geojson_url,
+                featureidkey="properties.ST_NM",
+                locations="state",
+                color="total_insurance",
+                color_continuous_scale="Greens",
+                title=f"Insurance Map ({selected_year} Q{selected_quarter})"
+            )
+
+            fig3.update_layout(height=450, margin=dict(l=0, r=0, t=40, b=0))
+            fig3.update_geos(fitbounds="locations", visible=False)
+
+            st.plotly_chart(fig3, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Error loading map charts: {e}")
 
     st.markdown("---")
-    st.subheader("PhonePe Insurance Distribution Across India")
-    st.write("""
-This visualization shows the distribution of PhonePe insurance transactions across different states in India.
 
-Features:
-- Displays the number of insurance transactions performed through PhonePe
-- Highlights states with higher insurance adoption
-- Uses color intensity to represent the concentration of insurance transactions
-- Helps identify regions where digital insurance services are widely used
+    # ----------------------------
+    # TOP STATES SNAPSHOT
+    # ----------------------------
+    try:
+        st.subheader("🔥 Top Performing States Snapshot")
 
-Insight:
-States with darker green shades indicate higher insurance transaction activity, showing stronger adoption of digital insurance services through PhonePe. Lighter regions highlight potential markets where insurance penetration can grow further.
-""")
+        top_txn_query = text("""
+        SELECT 
+            state,
+            SUM(transaction_count) AS total_transactions
+        FROM aggregated_transactions
+        WHERE year = :year AND quarter = :quarter
+        GROUP BY state
+        ORDER BY total_transactions DESC
+        LIMIT 5
+        """)
 
-    query_ins = text("""
-    SELECT 
-    state,
-    SUM(insurance_count) AS total_insurance
-    FROM aggregated_insurance
-    GROUP BY state
-    """)
+        top_user_query = text("""
+        SELECT 
+            state,
+            SUM(registeredUsers) AS total_users
+        FROM aggregated_users
+        WHERE year = :year AND quarter = :quarter
+        GROUP BY state
+        ORDER BY total_users DESC
+        LIMIT 5
+        """)
 
-    df_ins = pd.read_sql(query_ins, engine)
+        top_ins_query = text("""
+        SELECT 
+            state,
+            SUM(insurance_count) AS total_insurance
+        FROM aggregated_insurance
+        WHERE year = :year AND quarter = :quarter
+        GROUP BY state
+        ORDER BY total_insurance DESC
+        LIMIT 5
+        """)
 
-    df_ins["state"] = df_ins["state"].str.replace("-", " ").str.title()
+        top_txn = pd.read_sql(
+            top_txn_query, engine,
+            params={"year": selected_year, "quarter": selected_quarter}
+        )
 
-    fig3 = px.choropleth(
-        df_ins,
-        geojson=geojson_url,
-        featureidkey="properties.ST_NM",
-        locations="state",
-        color="total_insurance",
-        color_continuous_scale="Greens",
-        title="PhonePe Insurance Transactions Distribution"
+        top_users = pd.read_sql(
+            top_user_query, engine,
+            params={"year": selected_year, "quarter": selected_quarter}
+        )
+
+        top_ins = pd.read_sql(
+            top_ins_query, engine,
+            params={"year": selected_year, "quarter": selected_quarter}
+        )
+
+        for df_ in [top_txn, top_users, top_ins]:
+            if not df_.empty:
+                df_["state"] = df_["state"].str.replace("-", " ").str.title()
+
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            st.markdown("### 💳 Top Transaction States")
+            st.dataframe(top_txn, use_container_width=True, hide_index=True)
+
+        with c2:
+            st.markdown("### 👥 Top User States")
+            st.dataframe(top_users, use_container_width=True, hide_index=True)
+
+        with c3:
+            st.markdown("### 🛡 Top Insurance States")
+            st.dataframe(top_ins, use_container_width=True, hide_index=True)
+
+    except Exception as e:
+        st.error(f"Error loading top states summary: {e}")
+
+    st.markdown("---")
+
+    # ----------------------------
+    # HOME PAGE INSIGHTS
+    # ----------------------------
+    st.subheader("📌 Key Growth Insight")
+    st.success(
+"The home page shows that PhonePe growth should be tracked through transactions, users, and insurance together, because strong adoption in one area may not always mean balanced platform growth."
     )
 
-    fig3.update_layout(height=700)
-
-    fig3.update_geos(
-        fitbounds="locations",
-        visible=False
-    )
-
-    st.plotly_chart(fig3, use_container_width=True)
+    st.caption("Built with Streamlit | PhonePe Transaction Insights Dashboard")
 
 # AGGREGATED TRANSACTIONS
 
 elif page == "Decoding Transaction Dynamics on PhonePe":
 
     st.header("Decoding Transaction Dynamics on PhonePe")
+    st.subheader("1.Comparison between Transaction Count and Transaction Amount by Transaction Type")
 
     query_states = """
     SELECT DISTINCT state 
@@ -284,19 +448,10 @@ elif page == "Decoding Transaction Dynamics on PhonePe":
             f"₹ {state_data['total_amount'].sum():.2f}"
         )
 
-        st.markdown("---")
-        st.subheader("1.Comparison between Transaction Count and Transaction Amount by Transaction Type")
         st.write("""
-This section analyzes how different types of transactions are performed on PhonePe across Indian states.
+Issue: Transaction usage and transaction value do not always grow together across states and categories, so high-frequency services may not be the highest-value drivers. This makes it important to track both count and amount together to understand real category growth.
 
-Features:
-- Allows users to select a specific state for detailed analysis
-- Compares transaction counts across different transaction categories
-- Shows the total transaction amount for each transaction type
-- Provides a side-by-side comparison of transaction volume and value
-
-Insight:
-By comparing transaction count and transaction amount, we can identify which services are used most frequently and which generate higher transaction value. This helps understand user payment behavior and highlights the most popular transaction categories on PhonePe.
+Analysis & Growth Insight: Growth is strongest in categories that show a rise in both transaction volume and total value, indicating wider adoption as well as higher monetary contribution. This helps identify scalable services, state-wise demand patterns, and the transaction types driving PhonePe’s overall expansion.
 """)
 
         # CHARTS
@@ -347,16 +502,9 @@ By comparing transaction count and transaction amount, we can identify which ser
         st.markdown("---")
         st.subheader("2.Transaction and Amount Share by Transaction Type")
         st.write("""
-This section illustrates how different transaction categories contribute to the overall transaction activity on PhonePe.
+Issue: Transaction share by count and amount often differs across categories, creating imbalance where frequently used services may not generate proportional revenue.
 
-Features:
-- Displays the proportion of transaction counts across different transaction types
-- Shows the share of total transaction amount generated by each category
-- Helps compare transaction frequency versus transaction value
-- Provides a clear view of dominant payment services used by PhonePe users
-
-Insight:
-The transaction share chart highlights which services are used most frequently, while the amount share chart reveals which transaction categories generate the highest monetary value. This helps identify key revenue-driving services and popular payment behaviors among users.
+Analysis & Growth Insight: Focusing on categories with high value share and scaling high-frequency services can drive balanced growth by improving both user engagement and revenue contribution.
 """)
 
         fig3 = px.pie(
@@ -380,16 +528,9 @@ The transaction share chart highlights which services are used most frequently, 
         st.markdown("---")
         st.subheader("3.Year-wise Growth Analysis")
         st.write("""
-This section analyzes how PhonePe transactions have grown over the years in the selected state.
+Issue: Growth in transaction count and transaction amount may not increase at the same rate over years, indicating gaps between user adoption and value generation.
 
-Features:
-- Displays the yearly growth of total transaction counts
-- Shows how the total transaction amount has increased over time
-- Provides a breakdown of transaction volume by transaction type across years
-- Uses line, bar, and area charts for better trend analysis
-
-Insight:
-The yearly growth charts help identify trends in digital payment adoption. Increasing transaction counts indicate rising user activity, while growth in transaction amount reflects higher financial value processed through PhonePe. The transaction type breakdown highlights which payment services are driving growth over time.
+Analysis & Growth Insight: Consistent upward trends signal strong digital adoption, and identifying transaction types driving both volume and value helps scale high-performing services for sustained growth.
 """)
         
         query = text("""
@@ -467,16 +608,9 @@ The yearly growth charts help identify trends in digital payment adoption. Incre
         st.markdown("---")
         st.subheader("4.Quarter-wise Growth Analysis")
         st.write("""
-This section examines the quarterly trends in PhonePe transactions for the selected state.
+Issue: Quarterly fluctuations in transaction count and amount indicate inconsistent growth, often influenced by seasonal demand and external factors like festivals or campaigns.
 
-Features:
-- Shows how transaction counts change across quarters
-- Displays the growth of total transaction amount quarter by quarter
-- Compares quarterly performance across different years
-- Provides a breakdown of transaction types to identify seasonal usage patterns
-
-Insight:
-Quarter-wise analysis helps identify short-term fluctuations and seasonal patterns in digital payment activity. Rising transaction counts across quarters indicate increasing adoption, while variations between quarters may reflect festive seasons, promotional campaigns, or changes in consumer spending behavior.
+Analysis & Growth Insight: Identifying peak-performing quarters and transaction types helps leverage seasonal trends, optimize campaigns, and drive steady, year-round growth.
 """)
 
         query = text("""
@@ -560,16 +694,9 @@ Quarter-wise analysis helps identify short-term fluctuations and seasonal patter
         st.markdown("---")
         st.subheader("5.Top 10 Transactions and Amount across States and Years")
         st.write("""
-This section highlights the top-performing states on PhonePe based on transaction volume and transaction value for the selected year.
+Issue: Top states by transaction volume and value may differ, indicating uneven regional contribution where high engagement does not always translate to high revenue.
 
-Features:
-- Allows users to select a specific year for analysis
-- Displays the top 10 states with the highest number of transactions
-- Shows the top 10 states generating the highest transaction amount
-- Uses horizontal bar charts to easily compare state performance
-
-Insight:
-The charts reveal which states contribute the most to PhonePe's transaction activity and revenue generation. High transaction counts indicate strong user engagement, while high transaction amounts highlight regions with larger financial flows through the platform.
+Analysis & Growth Insight: Focusing on high-value states and improving monetization in high-volume regions can drive balanced geographic growth and maximize overall platform performance.
 """)
 
         query = text("""
@@ -740,16 +867,9 @@ elif page == "Device Dominance and User Engagement Analysis":
     st.markdown("---")
     st.subheader("1.Top 5 Mobile Brands by Brand Users")
     st.write("""
-This chart highlights the most popular mobile device brands used by PhonePe users in the selected state and time period.
+Issue: User distribution is concentrated in a few mobile brands, limiting reach if optimization is not aligned with dominant devices.
 
-Features:
-- Displays the top 5 mobile brands based on the number of PhonePe users
-- Allows comparison of device popularity across users
-- Uses a horizontal bar chart for easy ranking visualization
-- Shows brand user counts for the selected year and quarter
-
-Insight:
-The chart reveals which mobile brands dominate the PhonePe user base in the selected region. Higher user counts indicate greater device penetration and compatibility with digital payment services, helping understand device preferences among PhonePe users.
+Analysis & Growth Insight: Focusing app performance and campaigns on top-used devices while expanding compatibility to emerging brands can increase user acquisition and drive broader growth.
 """)
 
     fig1 = px.bar(
@@ -782,16 +902,9 @@ The chart reveals which mobile brands dominate the PhonePe user base in the sele
     st.markdown("---")
     st.subheader("2.Which Device Brands Dominate the PhonePe User Base Across India?")
     st.write("""
-This visualization analyzes the distribution of PhonePe users based on the mobile device brands they use across India.
+Issue: User concentration in a few dominant mobile brands creates dependency, limiting reach across diverse device ecosystems.
 
-Features:
-- Displays the total number of PhonePe users for each mobile device brand
-- Highlights the most widely used smartphone brands among PhonePe users
-- Uses a bar chart to easily compare device brand popularity
-- Helps understand device ecosystem trends within the PhonePe user base
-
-Insight:
-Brands with higher user counts dominate the PhonePe ecosystem, indicating stronger smartphone market presence among digital payment users. Understanding device preferences helps identify which platforms contribute most to PhonePe adoption and user engagement.
+Analysis & Growth Insight: Optimizing for leading brands while improving support for underrepresented devices can expand user base, enhance accessibility, and drive inclusive growth across India.
 """)
 
     query = text("""
@@ -823,16 +936,9 @@ Brands with higher user counts dominate the PhonePe ecosystem, indicating strong
     st.markdown("---")
     st.subheader("3.User Engagement Across Device Brands")
     st.write("""
-This visualization analyzes how actively PhonePe users engage with the application across different mobile device brands.
+Issue: Engagement levels vary significantly across mobile brands, indicating inconsistent user activity despite similar user distribution.
 
-Features:
-- Displays the total number of app opens for each mobile device brand
-- Highlights which devices generate the highest user engagement
-- Allows comparison of app usage behavior across different smartphone brands
-- Uses a bar chart to clearly rank device brands by engagement level
-
-Insight:
-Higher app open counts indicate stronger user engagement on specific device brands. Brands with greater engagement suggest a larger active user base and consistent usage of PhonePe services, helping understand which devices contribute most to platform activity.
+Analysis & Growth Insight: Enhancing performance and experience on high-engagement devices while improving retention strategies for low-engagement brands can boost overall app usage and drive sustained growth.
 """)
     
     query = text("""
@@ -869,16 +975,9 @@ Higher app open counts indicate stronger user engagement on specific device bran
     st.markdown("---")
     st.subheader("4.Device Brand Usage Across Different States")
     st.write("""
-This visualization explores how different mobile device brands are used by PhonePe users across various states in India.
+Issue: Strong regional dominance of certain mobile brands creates uneven device distribution, limiting uniform user reach and experience across states.
 
-Features:
-- Displays the number of registered users for each device brand in every state
-- Highlights regional preferences for different smartphone brands
-- Uses a stacked bar chart to compare brand usage across states
-- Helps identify states where specific device brands dominate the user base
-
-Insight:
-The chart reveals regional variations in smartphone usage among PhonePe users. States with larger segments for specific brands indicate stronger market presence of those devices, helping understand how device ecosystems influence digital payment adoption.
+Analysis & Growth Insight: Tailoring optimization and marketing strategies to region-specific device preferences can enhance adoption, improve accessibility, and drive targeted growth across diverse markets.
 """)
 
     query = text("""
@@ -915,16 +1014,9 @@ The chart reveals regional variations in smartphone usage among PhonePe users. S
     st.markdown("---")
     st.subheader("5.Device Brand Usage Changed Over Years")
     st.write("""
-This visualization analyzes how the usage of different mobile device brands among PhonePe users has evolved over the years.
+Issue: Changing device brand trends indicate shifting user preferences, risking decline in engagement if adaptation to new dominant devices is delayed.
 
-Features:
-- Displays year-wise trends in the number of users for each mobile device brand
-- Highlights how device preferences change over time
-- Uses a line chart with markers to track growth patterns across brands
-- Allows comparison of user adoption across different smartphone brands
-
-Insight:
-The trend lines show how the popularity of different device brands has shifted over time among PhonePe users. Brands with consistently rising user counts indicate growing market share, while stable or declining trends may reflect changing smartphone preferences or market competition.
+Analysis & Growth Insight: Tracking rising brands and optimizing early for emerging devices enables better user acquisition, sustained engagement, and long-term growth.
 """)
 
     query = text("""
@@ -980,16 +1072,9 @@ elif page == "Insurance Penetration and Growth Potential Analysis":
     st.markdown("---")
     st.subheader("1.States with Highest Insurance Transaction Volume")
     st.write("""
-This visualization highlights the states with the highest number of insurance transactions conducted through PhonePe.
+Issue: Insurance transaction adoption is uneven across states, with a few regions dominating while others show low penetration.
 
-Features:
-- Displays state-wise insurance transaction counts
-- Ranks states based on total insurance transactions
-- Uses a bar chart to easily compare transaction activity across regions
-- Helps identify states with strong adoption of digital insurance services
-
-Insight:
-States with higher insurance transaction volumes indicate stronger adoption of digital insurance services through PhonePe. These regions represent mature markets for insurance products, while states with lower volumes may offer opportunities for expanding digital insurance awareness and services.
+Analysis & Growth Insight: Expanding awareness and targeted offerings in low-performing states while scaling success strategies from high-performing regions can drive nationwide insurance growth.
 """)
 
     query = text("""
@@ -1027,16 +1112,9 @@ States with higher insurance transaction volumes indicate stronger adoption of d
     st.markdown("---")
     st.subheader("2.States with Highest Insurance Transaction Amount")
     st.write("""
-This visualization analyzes the states that generate the highest insurance transaction value through PhonePe.
+Issue: Insurance transaction value is concentrated in a few states, indicating uneven revenue distribution and limited high-value adoption across regions.
 
-Features:
-- Displays the total insurance transaction amount for each state
-- Highlights regions contributing the highest financial value in insurance services
-- Uses a bar chart to compare transaction value across states
-- Helps identify revenue-driving markets for digital insurance adoption
-
-Insight:
-States with higher insurance transaction amounts indicate stronger financial participation in digital insurance services. These regions may have higher-value policies or greater insurance awareness, making them important markets for expanding digital financial products.
+Analysis & Growth Insight: Expanding high-value insurance products and awareness in low-performing states while strengthening top markets can drive balanced revenue growth and deeper market penetration.
 """)
 
     query = text("""
@@ -1074,16 +1152,9 @@ States with higher insurance transaction amounts indicate stronger financial par
     st.markdown("---")
     st.subheader("3.Insurance Adoption Growth Over Years")
     st.write("""
-This visualization analyzes the year-wise growth of insurance transactions conducted through PhonePe.
+Issue: Year-wise growth in insurance transactions may be inconsistent, indicating fluctuating adoption and awareness across different periods.
 
-Features:
-- Displays the total number of insurance transactions for each year
-- Tracks the growth trend of digital insurance adoption over time
-- Uses a line chart with markers to clearly show yearly changes
-- Helps identify periods of significant growth in insurance usage
-
-Insight:
-An increasing trend in insurance transactions indicates rising awareness and adoption of digital insurance services among PhonePe users. This growth reflects expanding trust in digital financial products and highlights the platform’s role in improving insurance accessibility across India.
+Analysis & Growth Insight: Sustained upward trends reflect increasing trust and accessibility, and strengthening awareness campaigns with consistent engagement can drive steady long-term growth in digital insurance adoption.
 """)
 
     query = text("""
@@ -1117,16 +1188,9 @@ An increasing trend in insurance transactions indicates rising awareness and ado
     st.markdown("---")
     st.subheader("4.States with Many PhonePe Users but Low Insurance Transactions")
     st.write("""
-This visualization identifies states where PhonePe has a large user base but relatively low insurance transaction activity.
+Issue: High user base but low insurance transactions in certain states indicates underutilization and a gap between platform adoption and service usage.
 
-Features:
-- Compares total registered PhonePe users with insurance transaction counts
-- Uses a scatter plot to highlight the relationship between platform adoption and insurance usage
-- Displays each state as an individual data point for easy comparison
-- Helps detect regions where insurance services are underutilized
-
-Insight:
-States with high registered users but lower insurance transaction counts represent untapped opportunities for digital insurance adoption. These regions could benefit from targeted awareness campaigns, promotional offers, or localized insurance products to improve adoption through the PhonePe platform.
+Analysis & Growth Insight: Targeted awareness, localized products, and incentives in these regions can convert existing users into active insurance customers, unlocking significant growth potential.
 """)
 
     query = text("""
@@ -1168,16 +1232,9 @@ States with high registered users but lower insurance transaction counts represe
     st.markdown("---")
     st.subheader("5.States Showing the Fastest Insurance Growth Rate")
     st.write("""
-This visualization identifies the states where insurance transactions on PhonePe are growing at the fastest rate.
+Issue: Rapid growth is concentrated in a few states, indicating uneven expansion and untapped potential in slower-growing regions.
 
-Features:
-- Calculates year-over-year growth rate in insurance transactions for each state
-- Highlights the top 10 states with the highest insurance growth percentage
-- Uses a bar chart to clearly compare growth performance across states
-- Helps identify emerging markets for digital insurance adoption
-
-Insight:
-States with the highest growth rates represent rapidly expanding markets for digital insurance services. These regions may have increasing awareness of financial protection products and strong potential for future insurance adoption through the PhonePe platform.
+Analysis & Growth Insight: Focusing on high-growth states to scale quickly while replicating successful strategies in low-growth regions can drive balanced and accelerated nationwide insurance adoption.
 """)
 
     query = text("""
@@ -1245,16 +1302,9 @@ elif page == "Transaction Analysis for Market Expansion":
     st.markdown("---")
     st.subheader("1.States with Highest PhonePe Transaction Volume")
     st.write("""
-This visualization highlights the states with the highest number of PhonePe transactions.
+Issue: Transaction volume is heavily concentrated in a few states, indicating uneven adoption and reliance on limited high-performing regions.
 
-Features:
-- Displays the total transaction volume for each state
-- Ranks the top 10 states based on transaction activity
-- Uses a bar chart for clear comparison of transaction volumes
-- Helps identify regions with strong digital payment adoption
-
-Insight:
-States with the highest transaction volumes indicate strong user engagement and frequent usage of PhonePe services. These regions represent mature digital payment markets where users actively rely on PhonePe for daily transactions.
+Analysis & Growth Insight: Expanding digital payment adoption in low-performing states while strengthening engagement in top states can drive balanced growth and broader market penetration.
 """)
 
     query = text("""
@@ -1302,16 +1352,9 @@ States with the highest transaction volumes indicate strong user engagement and 
     st.markdown("---")
     st.subheader("2.States Generating the Highest PhonePe Transaction Value")
     st.write("""
-This visualization highlights the states that generate the highest total transaction value on the PhonePe platform.
+Issue: Transaction value is concentrated in a few states, indicating uneven economic contribution and dependency on key regions.
 
-Features:
-- Displays the total transaction value processed in each state
-- Ranks the top 10 states based on overall transaction amount
-- Uses a bar chart to easily compare transaction value across regions
-- Helps identify states contributing the most to PhonePe's financial transaction flow
-
-Insight:
-States with the highest transaction values represent key economic hubs where users perform higher-value digital payments. These regions are important markets for PhonePe, as they contribute significantly to the platform’s total transaction revenue and financial activity.
+Analysis & Growth Insight: Expanding high-value transactions in emerging states while strengthening core markets can drive balanced revenue growth and improve overall financial distribution.
 """)
 
     query = text("""
@@ -1359,16 +1402,9 @@ States with the highest transaction values represent key economic hubs where use
     st.markdown("---")
     st.subheader("3.Growth of PhonePe Transactions Over Time")
     st.write("""
-This visualization tracks the growth of PhonePe transactions over different years and quarters.
+Issue: Growth across years and quarters may be uneven, showing seasonal spikes and inconsistent transaction trends.
 
-Features:
-- Displays the total number of transactions for each year and quarter
-- Uses a line chart with markers to highlight transaction trends over time
-- Helps observe seasonal patterns and growth phases in digital payments
-- Provides a time-based view of how PhonePe usage has evolved
-
-Insight:
-An increasing trend in transaction counts indicates rising adoption of digital payments through PhonePe. Growth over quarters and years reflects expanding user trust, wider merchant acceptance, and increasing reliance on digital financial services across India.
+Analysis & Growth Insight: Sustained upward trends indicate strong adoption, and leveraging peak periods while stabilizing low phases can drive consistent long-term growth.
 """)
 
     query = text("""
@@ -1407,16 +1443,9 @@ An increasing trend in transaction counts indicates rising adoption of digital p
     st.markdown("---")
     st.subheader("4.Distribution of Transaction Types Across States")
     st.write("""
-This visualization shows how different types of PhonePe transactions are distributed across the top performing states.
+Issue: Transaction type distribution varies across states, leading to uneven service adoption and reliance on specific payment categories.
 
-Features:
-- Displays transaction counts categorized by transaction type for each state
-- Focuses on the top 10 states with the highest overall transaction activity
-- Uses a stacked bar chart to compare multiple transaction categories within each state
-- Helps understand which transaction types dominate in different regions
-
-Insight:
-The distribution of transaction types reveals user payment behavior across states. Certain regions may rely more on specific services such as peer-to-peer transfers, merchant payments, or financial services. Understanding these patterns helps identify regional preferences and supports targeted service improvements.
+Analysis & Growth Insight: Identifying dominant transaction types per region enables targeted feature optimization and promotions, driving diversified usage and balanced growth across states.
 """)
 
     query = text("""
@@ -1472,16 +1501,9 @@ The distribution of transaction types reveals user payment behavior across state
     st.markdown("---")
     st.subheader("5.States with High Growth Potential but Lower Transaction Activity")
     st.write("""
-This visualization highlights states that currently have lower overall transaction activity but show potential for future growth in digital payments.
+Issue: Low transaction volumes in certain states indicate limited adoption despite gradual growth trends.
 
-Features:
-- Identifies states with comparatively lower total transaction volumes
-- Tracks yearly transaction trends for these emerging markets
-- Uses a line chart with markers to visualize growth patterns over time
-- Allows comparison of transaction growth among multiple states
-
-Insight:
-States with lower transaction activity but steady growth trends represent emerging digital payment markets. These regions may benefit from improved digital infrastructure, awareness campaigns, and merchant adoption strategies, creating opportunities for PhonePe to expand its user engagement and transaction volume.
+Analysis & Growth Insight: Strengthening digital infrastructure, awareness, and merchant onboarding in these emerging markets can accelerate adoption and unlock significant future growth.
 """)
 
     query = text("""
@@ -1554,16 +1576,9 @@ elif page == "User Engagement and Growth Strategy":
     st.markdown("---")
     st.subheader("1.States with the Highest Number of Registered PhonePe Users")
     st.write("""
-This visualization highlights the states with the highest number of registered PhonePe users across India.
+Issue: User base is concentrated in a few states, indicating uneven adoption and limited reach in less penetrated regions.
 
-Features:
-- Displays the total number of registered PhonePe users for each state
-- Identifies the top 10 states with the largest user base
-- Uses a bar chart to clearly compare user distribution across states
-- Helps understand where PhonePe adoption is strongest
-
-Insight:
-States with the highest number of registered users represent major digital payment hubs where PhonePe adoption is widespread. These regions often have stronger digital infrastructure, higher smartphone penetration, and greater awareness of digital financial services.
+Analysis & Growth Insight: Expanding awareness, infrastructure, and localized strategies in low-user states while strengthening engagement in top regions can drive balanced nationwide growth.
 """)
 
     query = text("""
@@ -1611,16 +1626,9 @@ States with the highest number of registered users represent major digital payme
     st.markdown("---")
     st.subheader("2.User Engagement Across States (Registered Users vs App Opens)")
     st.write("""
-This visualization analyzes user engagement across states by comparing the number of registered PhonePe users with the number of times the application is opened.
+Issue: Some states show high user base but low app opens, indicating weak engagement despite strong adoption.
 
-Features:
-- Compares total registered users and total app opens for each state
-- Uses a scatter plot to show the relationship between user base and app activity
-- Bubble size represents the number of registered users in each state
-- Helps identify states with strong or weak user engagement levels
-
-Insight:
-States with high registered users and high app opens indicate strong user engagement and frequent usage of PhonePe services. States with many users but relatively fewer app opens may represent areas where engagement strategies, promotions, or feature awareness can be improved.
+Analysis & Growth Insight: Improving user retention through targeted campaigns, feature awareness, and personalized experiences can convert passive users into active users and drive sustained growth.
 """)
 
     query = text("""
@@ -1665,16 +1673,9 @@ States with high registered users and high app opens indicate strong user engage
     st.markdown("---")
     st.subheader("3.User Growth Trend Over Time")
     st.write("""
-This visualization shows how the number of registered PhonePe users has grown over the years across India.
+Issue: User growth may be uneven across years, indicating fluctuating adoption and potential saturation in certain periods.
 
-Features:
-- Aggregates total registered PhonePe users for each year
-- Uses a line chart with markers to clearly visualize the growth trend
-- Helps identify periods of rapid user adoption
-- Provides a clear view of how PhonePe's user base has expanded over time
-
-Insight:
-A steady upward trend in registered users indicates increasing adoption of digital payment platforms like PhonePe. Rapid growth periods may reflect expansion into new markets, improved digital infrastructure, or increased trust in online financial services.
+Analysis & Growth Insight: Sustained upward trends reflect strong adoption, and expanding into untapped markets with targeted strategies can maintain consistent user growth.
 """)
 
     query = text("""
@@ -1710,16 +1711,9 @@ A steady upward trend in registered users indicates increasing adoption of digit
     st.markdown("---")
     st.subheader("4.District-wise User Engagement (Registered Users vs App Opens)")
     st.write("""
-This visualization compares the number of registered PhonePe users with the total number of app opens across different states. It helps measure how actively users engage with the PhonePe application.
+Issue: High user registration in some states does not translate into proportional app usage, indicating low engagement levels.
 
-Features:
-- Displays the relationship between registered users and app usage
-- Uses a scatter plot to identify engagement patterns across states
-- Bubble size represents the number of registered users
-- Helps detect states with strong or weak user activity
-
-Insight:
-States that appear in the upper-right section of the chart have both a large user base and high app activity, indicating strong engagement. States with many registered users but relatively lower app opens may indicate untapped engagement potential, where awareness campaigns or improved services could increase usage.
+Analysis & Growth Insight: Enhancing user experience, targeted campaigns, and feature awareness in low-engagement states can increase app activity and drive deeper platform growth.
 """)
 
     query = text("""
@@ -1759,16 +1753,9 @@ States that appear in the upper-right section of the chart have both a large use
     st.markdown("---")
     st.subheader("5.States with High Users but Lower Engagement")
     st.write("""
-This visualization highlights states where PhonePe has a large number of registered users but comparatively lower engagement in terms of app opens. It helps identify regions where user adoption is strong but active usage may be limited.
+Issue: High user base but low app opens in certain states indicates a gap between adoption and active engagement.
 
-Features:
-- Compares total registered users with total app opens across states
-- Uses a scatter plot to detect engagement gaps
-- Bubble size represents the total number of registered users
-- Helps identify potential markets for increasing user engagement
-
-Insight:
-States positioned far to the right but relatively lower on the vertical axis have many registered users but fewer app opens. This indicates lower user engagement. These states present an opportunity for PhonePe to improve user interaction through targeted campaigns, better features, or promotional incentives to increase app usage.
+Analysis & Growth Insight: Targeted engagement strategies, feature awareness, and incentives in these regions can convert passive users into active users, driving deeper usage and growth.
 """)
 
     query = text("""
