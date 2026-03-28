@@ -8,7 +8,7 @@
 
 The **PhonePe Transaction Insights Dashboard** is an interactive analytics project built to study digital payment behavior across India using transaction, user, device, and insurance data. Based on the current Streamlit application structure and README, the project already covers five major analysis areas: Home overview, Transaction Dynamics, Device Dominance, Insurance Growth, Market Expansion, and User Engagement. This improved version strengthens the business storytelling, dashboard quality, and growth-focused insights across every module.  
 
-The application code includes multiple analytics pages, KPI cards on the Home page, state/year/quarter filters, map visualizations, trend charts, category comparisons, and growth insights embedded directly in the dashboard. The current README explains the purpose of the dashboard and its core modules, but it can be improved further by documenting stronger business value, clearer growth recommendations, and better technical structure. fileciteturn1file0turn1file1
+The application code includes multiple analytics pages, KPI cards on the Home page, state/year/quarter filters, map visualizations, trend charts, category comparisons, and growth insights embedded directly in the dashboard. The current README explains the purpose of the dashboard and its core modules, but it can be improved further by documenting stronger business value, clearer growth recommendations, and better technical structure.
 
 ---
 
@@ -50,7 +50,7 @@ The current Streamlit app contains these major pages:
 5. **Transaction Analysis for Market Expansion**  
 6. **User Engagement and Growth Strategy**  
 
-These pages are defined in the navigation sidebar and are backed by SQL queries on multiple MySQL tables including `aggregated_transactions`, `aggregated_users`, `aggregated_insurance`, `map_transactions`, and `map_users`. fileciteturn1file0L24-L33
+These pages are defined in the navigation sidebar and are backed by SQL queries on multiple MySQL tables including `aggregated_transactions`, `aggregated_users`, `aggregated_insurance`, `map_transactions`, and `map_users`. 
 
 ---
 
@@ -93,7 +93,7 @@ The Home page should be presented as a **decision-making landing page**, not jus
 
 ## 💳 Decoding Transaction Dynamics on PhonePe
 
-This section studies transaction count, amount, category share, year-wise trends, quarter-wise trends, and top-performing states. It uses filters by state and year, then compares count vs value through bar, pie, line, area, and ranking charts. fileciteturn1file0L285-L564
+This section studies transaction count, amount, category share, year-wise trends, quarter-wise trends, and top-performing states. It uses filters by state and year, then compares count vs value through bar, pie, line, area, and ranking charts. 
 
 ### What This Module Solves
 
@@ -126,7 +126,7 @@ This is one of the strongest pages in the app because it connects **behavioral f
 
 ## 📱 Device Dominance and User Engagement Analysis
 
-This page analyzes mobile brand adoption, app opens, state-wise brand usage, and year-wise device trends using `aggregated_users`. It compares top device brands, engagement by device brand, regional brand dominance, and change in brand usage over time. fileciteturn1file0L580-L770
+This page analyzes mobile brand adoption, app opens, state-wise brand usage, and year-wise device trends using `aggregated_users`. It compares top device brands, engagement by device brand, regional brand dominance, and change in brand usage over time. 
 
 ### What This Module Solves
 
@@ -159,8 +159,7 @@ This page is useful because device ecosystem directly affects app performance, e
 
 ## 🛡️ Insurance Penetration and Growth Potential Analysis
 
-This page studies insurance transaction volume, value, year-wise growth, states with high users but low insurance adoption, and fastest growth states. It uses bar charts, line charts, and scatter plots to reveal revenue concentration and untapped markets. fileciteturn1file0L786-L955
-
+This page studies insurance transaction volume, value, year-wise growth, states with high users but low insurance adoption, and fastest growth states. It uses bar charts, line charts, and scatter plots to reveal revenue concentration and untapped markets. 
 ### What This Module Solves
 
 - Identifies high-performing insurance markets
@@ -192,7 +191,7 @@ This is an important business page because insurance is not just a usage metric;
 
 ## 📈 Transaction Analysis for Market Expansion
 
-This page uses `map_transactions` to identify top states by volume and value, time-based transaction growth, type distribution, and low-activity but emerging states. It is designed to highlight geographic expansion opportunities. fileciteturn1file0L971-L1149
+This page uses `map_transactions` to identify top states by volume and value, time-based transaction growth, type distribution, and low-activity but emerging states. It is designed to highlight geographic expansion opportunities. 
 
 ### What This Module Solves
 
@@ -225,7 +224,7 @@ This page is especially valuable for regional expansion strategy. A state with l
 
 ## 👥 User Engagement and Growth Strategy
 
-This page uses `map_users` to analyze top user states, user engagement through registered users vs app opens, growth trends, and lower-engagement states. It relies heavily on scatter plots and trend charts to distinguish adoption from actual activity. fileciteturn1file0L1165-L1336
+This page uses `map_users` to analyze top user states, user engagement through registered users vs app opens, growth trends, and lower-engagement states. It relies heavily on scatter plots and trend charts to distinguish adoption from actual activity. 
 
 ### What This Module Solves
 
@@ -262,9 +261,9 @@ The current app is functional, but a few code-level improvements would make it c
 
 ### Key Issues
 
-- Database credentials are still hardcoded as placeholders in the app instead of secure deployment configuration. fileciteturn1file0L12-L23
-- `json`, `requests`, and `URL` are imported but are not actively used in the current file. fileciteturn1file0L1-L7
-- `format_state_name()` is redefined multiple times across the script, which makes the code repetitive and harder to maintain. fileciteturn1file0L35-L40
+- Database credentials are still hardcoded as placeholders in the app instead of secure deployment configuration. 
+- `json`, `requests`, and `URL` are imported but are not actively used in the current file. 
+- `format_state_name()` is redefined multiple times across the script, which makes the code repetitive and harder to maintain. 
 - Many sections repeat similar query, formatting, and plotting logic instead of using reusable functions.
 - Several titles and labels can be standardized for cleaner UX.
 - Some charts show absolute totals only, where normalized ratios would provide better business insight.
@@ -386,7 +385,7 @@ requests
 
 ## 🏁 Final Conclusion
 
-The current Streamlit app already has a strong analytical base with multiple dashboard pages, SQL-driven visualizations, state-wise filters, and embedded insight statements. The next level improvement is to make every page more action-oriented by adding measurable growth KPIs, opportunity scoring, normalized ratios, and clearer strategy recommendations. The uploaded app file and existing README show a solid foundation for a portfolio-grade fintech analytics project, and this improved README reframes it as a stronger business-driven dashboard. fileciteturn1file0turn1file1
+The current Streamlit app already has a strong analytical base with multiple dashboard pages, SQL-driven visualizations, state-wise filters, and embedded insight statements. The next level improvement is to make every page more action-oriented by adding measurable growth KPIs, opportunity scoring, normalized ratios, and clearer strategy recommendations. The uploaded app file and existing README show a solid foundation for a portfolio-grade fintech analytics project, and this improved README reframes it as a stronger business-driven dashboard. 
 
 ---
 
@@ -399,4 +398,4 @@ The current Streamlit app already has a strong analytical base with multiple das
 ## 🙌 Author
 
 **Eashwaradhinesh K**  
-Aspiring Data Scientist | ML Engineer
+Aspiring Data Scientist
