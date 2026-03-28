@@ -255,33 +255,6 @@ This page is crucial because user registration does not automatically mean stron
 
 ---
 
-## ⚠️ Technical Issues Observed in the Current Streamlit App
-
-The current app is functional, but a few code-level improvements would make it cleaner, safer, and easier to maintain.
-
-### Key Issues
-
-- Database credentials are still hardcoded as placeholders in the app instead of secure deployment configuration. 
-- `json`, `requests`, and `URL` are imported but are not actively used in the current file. 
-- `format_state_name()` is redefined multiple times across the script, which makes the code repetitive and harder to maintain. 
-- Many sections repeat similar query, formatting, and plotting logic instead of using reusable functions.
-- Several titles and labels can be standardized for cleaner UX.
-- Some charts show absolute totals only, where normalized ratios would provide better business insight.
-- Growth insights are present, but they can be upgraded into more measurable KPIs.
-
-### Recommended Code Improvements
-
-- Use a single `format_state_name()` helper function
-- Create reusable chart functions for bar, line, scatter, and choropleth charts
-- Use `st.secrets` for deployment-ready credentials
-- Add error handling for empty query outputs on every page
-- Add cached data loaders for repeated queries
-- Standardize units: lakhs / millions / crores
-- Use tabs or expanders for cleaner page structure
-- Add downloadable filtered tables for users
-
----
-
 ## 🌱 Stronger Growth Conditions to Add Across the Entire Dashboard
 
 To improve growth analysis in **all conditions**, the dashboard should not only show charts but also explain what action should be taken from them.
@@ -333,40 +306,6 @@ The improved dashboard can help answer:
 - Which states are best for insurance cross-sell?
 - Which regions should be prioritized for market expansion?
 - Where should PhonePe focus retention vs acquisition?
-
----
-
-## 🧠 Interview-Level Explanation
-
-This project is not just a visualization app. It is a **business intelligence system** for fintech growth. It combines transaction analytics, user engagement analysis, device ecosystem intelligence, insurance penetration study, and market opportunity detection into a single decision-support dashboard.
-
-The strongest value of the project is that it distinguishes between:
-
-- adoption and engagement,
-- usage and value,
-- volume and monetization,
-- and present performance vs future opportunity.
-
-That makes the dashboard useful for product teams, growth teams, regional expansion teams, and business strategy stakeholders.
-
----
-
-## 🗂️ Recommended Project Structure
-
-```text
-PhonePe_Transaction_Insights/
-│
-├── phonepe_streamlit.py
-├── README.md
-├── requirements.txt
-├── .gitignore
-├── assets/
-│   └── screenshots/
-├── sql/
-│   └── queries.sql
-└── data/
-    └── raw_or_processed_files
-```
 
 ---
 
